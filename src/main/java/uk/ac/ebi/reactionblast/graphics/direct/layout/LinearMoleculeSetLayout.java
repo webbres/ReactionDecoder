@@ -116,8 +116,14 @@ public class LinearMoleculeSetLayout extends AbstractDirectLayout<IAtomContainer
             if (params.alignMolecules && moleculeAxis != null) {
                 align(molecule, moleculeAxis);
             }
-            scaleMolecule(molecule,
-                    getScaleFactor(molecule, bondLength));
+            try {
+				scaleMolecule(molecule,
+				        getScaleFactor(molecule, bondLength));
+			} catch (Exception e) {
+				// If a molecule has no bonds it throws an exception here....
+				e.printStackTrace();
+			}
+            
             Rectangle2D bounds = getRectangle2D(molecule);
 
             double boundsWidth = bounds.getWidth();
