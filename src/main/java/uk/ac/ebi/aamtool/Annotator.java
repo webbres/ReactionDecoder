@@ -98,7 +98,7 @@ public class Annotator extends Helper {
      */
     protected String PREFIX;
 
-    Annotator() {
+    public Annotator() {
         this.REPORT_ALL_MAPPINGS = false;
         this.GENERATE_IMAGE = false;
         this.GENERATE_AAMIMAGE = false;
@@ -632,7 +632,7 @@ public class Annotator extends Helper {
      * @param doc
      * @param rootElement
      */
-    protected void annotateReactionAsXML(ReactionMechanismTool rmt, String reactionID, Document doc, Element rootElement) {
+    public void annotateReactionAsXML(ReactionMechanismTool rmt, String reactionID, Document doc, Element rootElement) {
         DecimalFormatSymbols instance = DecimalFormatSymbols.getInstance();
         instance.setExponentSeparator("E");//x10^
         DecimalFormat df = new DecimalFormat("##E00", instance);

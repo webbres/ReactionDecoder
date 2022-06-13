@@ -229,7 +229,7 @@ public class ImageGenerator {
      * @param outFile
      * @throws IOException
      */
-    protected static synchronized void makeLeftToRighHighlightedReactionToFile(
+    public static synchronized void makeLeftToRighHighlightedReactionToFile(
             IReaction reaction,
             AbstractDirectReactionLayout layout,
             AbstractAWTReactionLayout awtLayout,
@@ -290,17 +290,34 @@ public class ImageGenerator {
             boolean shouldCrop,
             File outFile) throws IOException {
 
+        BufferedImage image = makeLeftToRighHighlightedReaction(cdkReaction, width, height, shouldCrop);
+        write(image, "PNG", outFile);
+    }
+
+    /**
+     * Generate and return the BufferedImage for left to right highlighted reactions
+     * @param cdkReaction
+     * @param width
+     * @param height
+     * @param shouldCrop
+     * @throws IOException
+     */
+    public static synchronized BufferedImage makeLeftToRighHighlightedReaction(
+            IReaction cdkReaction,
+            int width, int height,
+            boolean shouldCrop) throws IOException {
+
         RBlastReaction rbReaction = new RBlastReaction(cdkReaction, true);
 
         DirectRBLastReactionDrawer drawer
                 = new DirectRBLastReactionDrawer(new Params(),
-                        new LeftToRightReactionLayout(),
-                        new LeftToRightAWTReactionLayout());
+                new LeftToRightReactionLayout(),
+                new LeftToRightAWTReactionLayout());
 
         drawer.getParams().drawMappings = false;
         drawer.getParams().drawAromaticCircles = false;
         /*
-        * set ids to false
+         * set ids to false
          */
         drawer.getParams().drawAtomID = false;
         drawer.getParams().drawLonePairs = false;
@@ -323,8 +340,8 @@ public class ImageGenerator {
         drawer.getParams().leftToRightMoleculeLabelFontSize = 10;
 
         /*
-        * Hack the code to crop by Asad else use //java.awt.Image image =
-        * drawer.drawRBlastReaction(rbReaction, width, height); for usual image
+         * Hack the code to crop by Asad else use //java.awt.Image image =
+         * drawer.drawRBlastReaction(rbReaction, width, height); for usual image
          */
         BufferedImage image = (BufferedImage) getBlankImage(width, height);
         Graphics2D g = (Graphics2D) image.getGraphics();
@@ -342,8 +359,100 @@ public class ImageGenerator {
         }
         g.dispose();
 
-        write(image, "PNG", outFile);
+        return image;
+    }
 
+    public synchronized static BufferedImage LeftToRightReactionCenterImageDirect(
+            IReaction cdkReaction, String rmrID, int height, int width) throws Exception {
+
+        return makeReactionCenterHighlightedReaction(cdkReaction,
+                new LeftToRightReactionLayout(),
+                new LeftToRightAWTReactionLayout(), width, height);
+    }
+
+    protected static synchronized BufferedImage makeReactionCenterHighlightedReaction(
+            IReaction reaction,
+            AbstractDirectReactionLayout layout,
+            AbstractAWTReactionLayout awtLayout,
+            int width, int height) throws IOException {
+        Params params = new Params();
+
+        params.leftToRightMoleculeLabelFontSize = 10;
+
+        params.drawMappings = false;
+        params.drawHighlights = true;
+        params.highlightsAbove = true;
+
+        params.drawAtomID = false;
+
+        params.drawMoleculeID = false;
+        params.drawLabelPanel = true;
+        params.drawAromaticCircles = true;
+
+        params.useCircularHighlight = false;
+
+        params.drawSubgraphBoxes = false;
+        params.drawBondStereoChanges = false;
+        params.drawBondFormedCleavedMarks = true;
+        params.drawBondOrderChangedMarks = true;
+
+        params.arrowGap = 30;
+        params.arrowLength = 60;
+        params.drawFatArrow = true;
+        params.drawArrowFilled = true;
+
+        params.borderY = 40;
+
+        params.drawRS = true;
+        params.shouldCrop = true;
+
+        RBlastReaction rblReaction = new RBlastReaction(reaction, true);
+        Map<IAtomContainer, List<RootSystem>> rootSystems
+                = findRootSystems(rblReaction);
+
+        DirectRBLastReactionDrawer reactionDrawer
+                = new DirectRBLastReactionDrawer(params, layout, awtLayout);
+        Color rootColor = RED;
+        Color neighbourColor = GREEN;
+        DirectMoleculeDrawer moleculeDrawer
+                = reactionDrawer.getReactionDrawer().getMoleculeDrawer();
+        moleculeDrawer.getHighlighters().clear();   // XXX HACK
+        for (IAtomContainer atomContainer : rootSystems.keySet()) {
+            List<RootSystem> rootSystemList = rootSystems.get(atomContainer);
+            for (RootSystem rootSystem : rootSystemList) {
+                IAtomContainer rootContainer
+                        = reaction.getBuilder().newInstance(IAtomContainer.class);
+                rootSystem.getRoots().stream().forEach((root) -> {
+                    rootContainer.addAtom(root);
+                });
+                IAtomContainer neighbourContainer
+                        = reaction.getBuilder().newInstance(IAtomContainer.class);
+                rootSystem.getLeaves().stream().forEach((leaf) -> {
+                    neighbourContainer.addAtom(leaf);
+                });
+                Highlighter highlighter = new SimpleHighlighter(params);
+                highlighter.addHighlights(rootContainer, rootColor);
+                highlighter.addHighlights(neighbourContainer, neighbourColor);
+                moleculeDrawer.addHighlighter(highlighter);
+            }
+        }
+
+        BufferedImage image = (BufferedImage) getBlankImage(width, height);
+        Graphics2D g = (Graphics2D) image.getGraphics();
+        g.setColor(WHITE);
+        g.fillRect(0, 0, width, height);
+        Rectangle2D finalBounds
+                = reactionDrawer.drawRBlastReaction(rblReaction, width, height, g);
+        if (params.shouldCrop
+                && (finalBounds.getWidth() != width
+                || finalBounds.getHeight() != height)) {
+            image = image.getSubimage((int) finalBounds.getX(),
+                    (int) finalBounds.getY(),
+                    (int) finalBounds.getWidth(),
+                    (int) finalBounds.getHeight());
+        }
+        g.dispose();
+        return image;
     }
 
     /**
